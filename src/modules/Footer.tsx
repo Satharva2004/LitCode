@@ -16,7 +16,7 @@ export const Footer = ({ muted = '#735f52', text = '#1f1714' }: { muted?: string
         Report issue
       </Text>
       <Text fontSize="10px" color={muted} whiteSpace="nowrap" minW={0}>
-        Made with love by{' '}
+        Made with ❤️ by{' '}
         <Text
           as="a"
           color={text}
