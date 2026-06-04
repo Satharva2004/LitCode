@@ -1,0 +1,17 @@
+body {
+  width: 320px;
+  min-width: 320px;
+  min-height: 300px;
+  background: transparent;
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#root {
+  width: 320px;
+  min-height: 300px;
+  overflow: hidden;
+}

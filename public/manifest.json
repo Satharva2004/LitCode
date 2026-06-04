@@ -1,0 +1,38 @@
+{
+  "name": "LitCode",
+  "short_name": "LitCode",
+  "description": "LitCode turns accepted LeetCode submissions into polished GitHub READMEs with submitted code, time complexity, and space complexity.",
+  "version": "0.0.5",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "LitCode",
+    "default_icon": {
+      "16": "logo-16.png",
+      "48": "logo-48.png",
+      "128": "logo-128.png"
+    }
+  },
+  "icons": {
+    "16": "logo-16.png",
+    "48": "logo-48.png",
+    "128": "logo-128.png"
+  },
+  "permissions": ["tabs", "storage", "cookies", "unlimitedStorage", "webRequest", "notifications"],
+  "host_permissions": ["https://leetcode.com/*", "https://dev-prometheus.vercel.app/*"],
+  "background": {
+    "service_worker": "static/scripts/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*"],
+      "js": ["static/scripts/authorize-github.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://leetcode.com/problems/*"],
+      "js": ["static/scripts/leetcode.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
