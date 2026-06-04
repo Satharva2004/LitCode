@@ -32,7 +32,7 @@ import { Footer } from './Footer';
 import { demoSubmissions } from '../utils/demo-submissions';
 import { formatProblemsPerDay, getTotalNumberOfStreaks } from '../utils/streak.helper';
 
-interface DashboardProps {}
+interface DashboardProps { }
 
 type ColorMode = 'light' | 'dark';
 type ThemeChoice = 'system' | ColorMode;
@@ -702,7 +702,7 @@ const Dashboard: React.FC<DashboardProps> = () => {
         <SimpleGrid columns={3} spacing={0} w="100%">
           <VStack align="center" justify="center" spacing={1} w="100%" textAlign="center">
             <Box h="14px" display="flex" alignItems="center" justifyContent="center">
-              <FiZap size={13} color={brand.gold} />
+              <FiZap size={13} color={brand.accent} />
             </Box>
             <Text fontWeight="800" fontSize="18px" lineHeight="1">
               {solvedToday}
@@ -713,7 +713,7 @@ const Dashboard: React.FC<DashboardProps> = () => {
           </VStack>
           <VStack align="center" justify="center" spacing={1} w="100%" textAlign="center">
             <Box h="14px" display="flex" alignItems="center" justifyContent="center">
-              <BiTrendingUp size={14} color={brand.gold} />
+              <BiTrendingUp size={14} color={brand.accent} />
             </Box>
             <Text fontWeight="800" fontSize="18px" lineHeight="1">
               {streak}
@@ -724,7 +724,7 @@ const Dashboard: React.FC<DashboardProps> = () => {
           </VStack>
           <VStack align="center" justify="center" spacing={1} w="100%" textAlign="center">
             <Box h="14px" display="flex" alignItems="center" justifyContent="center">
-              <FiBookOpen size={13} color={brand.gold} />
+              <FiBookOpen size={13} color={brand.accent} />
             </Box>
             <Text fontWeight="800" fontSize="18px" lineHeight="1">
               {totalSolved}
