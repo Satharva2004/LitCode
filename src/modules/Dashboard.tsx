@@ -354,7 +354,6 @@ const Dashboard: React.FC<DashboardProps> = () => {
       p={0}
       bg={theme.bg}
       color={theme.text}
-      overflow="hidden"
       display="flex"
       flexDirection="column"
     >

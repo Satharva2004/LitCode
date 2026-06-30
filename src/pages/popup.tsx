@@ -36,27 +36,23 @@ const hasCompletedRequirements = (userData: Partial<UserGlobalData>): boolean =>
 };
 
 const getUserData = async (): Promise<Partial<UserGlobalData>> => {
-  let userData: Partial<UserGlobalData> = {};
+  const syncData = await chrome.storage.sync.get([
+    'github_litcode_token',
+    'github_username',
+    'github_litcode_repo',
+    'github_litcode_repo_owner',
+  ]);
 
-  await chrome.storage.sync
-    .get([
-      'github_litcode_token',
-      'github_username',
-      'github_litcode_repo',
-      'github_litcode_repo_owner',
-      'leetcode_session',
-    ])
-    .then((result) => {
-      userData = {
-        github_litcode_token: result.github_litcode_token,
-        github_username: result.github_username,
-        github_litcode_repo: result.github_litcode_repo,
-        github_litcode_repo_owner: result.github_litcode_repo_owner,
-        leetcode_session: result.leetcode_session,
-      };
-    });
+  // leetcode_session is stored in local storage by the background script
+  const localData = await chrome.storage.local.get(['leetcode_session']);
 
-  return userData;
+  return {
+    github_litcode_token: syncData.github_litcode_token,
+    github_username: syncData.github_username,
+    github_litcode_repo: syncData.github_litcode_repo,
+    github_litcode_repo_owner: syncData.github_litcode_repo_owner,
+    leetcode_session: localData.leetcode_session,
+  };
 };
 
 const PopupPage: React.FC<PopupProps> = () => {
@@ -160,7 +156,7 @@ const PopupPage: React.FC<PopupProps> = () => {
   const theme = themes[colorMode];
 
   return (
-    <Container w="320px" minH="300px" h="auto" px={4} py={4} bg={theme.bg} color={theme.text} pos="relative" overflow="hidden">
+    <Container w="320px" minH="300px" h="auto" px={4} py={4} bg={theme.bg} color={theme.text} pos="relative">
       <VStack w="100%" minH="268px" align="center" justify={'center'}>
         {isLoading ? (
           <CircularProgress color="#c3382d" isIndeterminate />

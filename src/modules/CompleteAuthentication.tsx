@@ -13,10 +13,9 @@ import {
 import { useEffect, useState } from 'react';
 import { BsGithub } from 'react-icons/bs';
 import { SiLeetcode } from 'react-icons/si';
-import { useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { GITHUB_CLIENT_ID, GITHUB_REDIRECT_URI } from '../constants';
-import { GithubHandler } from '../handlers';
+import { GithubHandler, type GithubRepo } from '../handlers';
 import { Footer } from './Footer';
 
 export const themes = {
@@ -48,14 +47,16 @@ const AuthorizeWithGithub = ({ nextStep, colorMode = 'light' }: { nextStep: Func
   const theme = themes[colorMode];
 
   const handleClicked = () => {
-    const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(
-      GITHUB_REDIRECT_URI,
-    )}&scope=repo`;
-
-    chrome.tabs.create({ url: authUrl, active: true }, function () {
-      chrome.tabs.getCurrent(function (tab) {
-        if (!tab?.id) return;
-        chrome.tabs.remove(tab?.id, function () {});
+    const state = crypto.randomUUID();
+    chrome.storage.local.set({ litcode_oauth_state: state }, () => {
+      const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(
+        GITHUB_REDIRECT_URI,
+      )}&scope=repo&state=${state}`;
+      chrome.tabs.create({ url: authUrl, active: true }, function () {
+        chrome.tabs.getCurrent(function (tab) {
+          if (!tab?.id) return;
+          chrome.tabs.remove(tab.id, function () {});
+        });
       });
     });
   };
@@ -114,7 +115,7 @@ const AuthorizeWithLeetCode = ({ nextStep, colorMode = 'light' }: { nextStep: Fu
       chrome.tabs.create({ url: authUrl, active: true }, function () {
         chrome.tabs.getCurrent(function (tab) {
           if (!tab?.id) return;
-          chrome.tabs.remove(tab?.id, function () {});
+          chrome.tabs.remove(tab.id, function () {});
         });
       });
     });
@@ -127,7 +128,7 @@ const AuthorizeWithLeetCode = ({ nextStep, colorMode = 'light' }: { nextStep: Fu
   }, [leetcodeSession, nextStep]);
 
   useEffect(() => {
-    chrome.storage.sync.get(['leetcode_session'], (result) => {
+    chrome.storage.local.get(['leetcode_session'], (result) => {
       if (result.leetcode_session) {
         setLeetcodeSession(result.leetcode_session);
       }
@@ -166,12 +167,11 @@ const SelectRepositoryStep = ({ nextStep, colorMode = 'light' }: { nextStep: Fun
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [repositoryURL, setRepositoryURL] = useState<string>('');
   const [selectedRepo, setSelectedRepo] = useState<string>('');
-  const [repos, setRepos] = useState<{ fullName: string; owner: string; name: string }[]>([]);
+  const [repos, setRepos] = useState<GithubRepo[]>([]);
   const [loadingRepos, setLoadingRepos] = useState<boolean>(false);
   const [useManualURL, setUseManualURL] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
   const theme = themes[colorMode];
 
   const handleLinkRepo = async () => {
@@ -185,7 +185,7 @@ const SelectRepositoryStep = ({ nextStep, colorMode = 'light' }: { nextStep: Fun
       owner = sanitizedRepositoryURL.split('/').slice(-2)[0] || '';
     } else {
       if (!selectedRepo) return setError('Please select a repository');
-      const found = repos.find(r => r.fullName === selectedRepo);
+      const found = repos.find((r) => r.fullName === selectedRepo);
       if (!found) return setError('Selected repository not found');
       repoName = found.name;
       owner = found.owner;
@@ -200,12 +200,10 @@ const SelectRepositoryStep = ({ nextStep, colorMode = 'light' }: { nextStep: Fun
     const isFound = await github.checkIfRepoExists(`${owner}/${repoName}`);
     setLoading(false);
     if (!isFound) {
-      return setError('Repository not found');
+      return setError('Repository not found. Check the URL or your permissions.');
     }
     chrome.storage.sync.set({ github_litcode_repo: repoName, github_litcode_repo_owner: owner }, () => {
-      console.log('Repository linked successfully');
-      nextStep();
-      navigate(0);
+      window.location.reload();
     });
   };
 
@@ -229,7 +227,7 @@ const SelectRepositoryStep = ({ nextStep, colorMode = 'light' }: { nextStep: Fun
         });
         if (response.ok) {
           const data = await response.json();
-          const repoList = data.map((r: any) => ({
+          const repoList: GithubRepo[] = data.map((r: { full_name: string; owner: { login: string }; name: string }) => ({
             fullName: r.full_name,
             owner: r.owner.login,
             name: r.name,
@@ -243,8 +241,7 @@ const SelectRepositoryStep = ({ nextStep, colorMode = 'light' }: { nextStep: Fun
         } else {
           setUseManualURL(true);
         }
-      } catch (err) {
-        console.error('Failed to fetch repositories:', err);
+      } catch {
         setUseManualURL(true);
       } finally {
         setLoadingRepos(false);
@@ -275,9 +272,7 @@ const SelectRepositoryStep = ({ nextStep, colorMode = 'light' }: { nextStep: Fun
               color={theme.text}
               borderColor={theme.border}
               value={repositoryURL}
-              onChange={(e) => {
-                setRepositoryURL(e.target.value);
-              }}
+              onChange={(e) => setRepositoryURL(e.target.value)}
             />
           </InputGroup>
         ) : (
@@ -291,7 +286,7 @@ const SelectRepositoryStep = ({ nextStep, colorMode = 'light' }: { nextStep: Fun
             value={selectedRepo}
             onChange={(e) => setSelectedRepo(e.target.value)}
             disabled={loadingRepos}
-            placeholder={loadingRepos ? "Loading repositories..." : undefined}
+            placeholder={loadingRepos ? 'Loading repositories...' : undefined}
           >
             {repos.map((r) => (
               <option key={r.fullName} value={r.fullName} style={{ background: theme.bg, color: theme.text }}>
@@ -309,7 +304,7 @@ const SelectRepositoryStep = ({ nextStep, colorMode = 'light' }: { nextStep: Fun
               textDecoration="underline"
               onClick={() => setUseManualURL(!useManualURL)}
             >
-              {useManualURL ? "Select from list instead" : "Or paste URL manually"}
+              {useManualURL ? 'Select from list instead' : 'Or paste URL manually'}
             </Text>
           </FormHelperText>
         ) : (
@@ -322,7 +317,7 @@ const SelectRepositoryStep = ({ nextStep, colorMode = 'light' }: { nextStep: Fun
               textDecoration="underline"
               onClick={() => setUseManualURL(!useManualURL)}
             >
-              {useManualURL ? "Select from list instead" : "Or paste URL manually"}
+              {useManualURL ? 'Select from list instead' : 'Or paste URL manually'}
             </Text>
           </FormErrorMessage>
         )}
