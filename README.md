@@ -2,8 +2,8 @@
 
 # 🔥 LitCode Solutions
 
-[![Total](https://img.shields.io/badge/Total-2-blue?style=flat-square)](.)
-[![Easy](https://img.shields.io/badge/Easy-2-2ea44f?style=flat-square)](.)
+[![Total](https://img.shields.io/badge/Total-3-blue?style=flat-square)](.)
+[![Easy](https://img.shields.io/badge/Easy-3-2ea44f?style=flat-square)](.)
 [![Medium](https://img.shields.io/badge/Medium-0-d97706?style=flat-square)](.)
 [![Hard](https://img.shields.io/badge/Hard-0-dc2626?style=flat-square)](.)
 
@@ -17,21 +17,22 @@
 
 | Difficulty | Count | Progress |
 |:----------|------:|---------|
-| 🟢 Easy | 2 | `████████████` |
+| 🟢 Easy | 3 | `████████████` |
 | 🟡 Medium | 0 | `░░░░░░░░░░░░` |
 | 🔴 Hard | 0 | `░░░░░░░░░░░░` |
-| **Total** | **2** | |
+| **Total** | **3** | |
 
 ---
 
 ## 🗂️ Problems by Topic
 
 <details>
-<summary><b>Uncategorized</b> &nbsp;·&nbsp; 2 problems</summary>
+<summary><b>Uncategorized</b> &nbsp;·&nbsp; 3 problems</summary>
 
 | # | Problem | Difficulty | Solved |
 |---|---------|------------|--------|
 | 1 | [Two Sum](./1-two-sum-litcode-demo) | 🟢 Easy | 2026-06-30 |
+| 20 | [Valid Parentheses](./20-valid-parentheses-litcode-demo) | 🟢 Easy | 2026-06-30 |
 | 66 | [Plus One](./66-plus-one-litcode-demo) | 🟢 Easy | 2026-06-30 |
 
 </details>
