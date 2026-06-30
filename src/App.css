@@ -3,7 +3,7 @@ body {
   min-width: 320px;
   min-height: 300px;
   background: transparent;
-  overflow: hidden;
+  overflow: visible;
 }
 
 * {
@@ -13,5 +13,5 @@ body {
 #root {
   width: 320px;
   min-height: 300px;
-  overflow: hidden;
+  overflow: visible;
 }

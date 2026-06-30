@@ -358,9 +358,9 @@ const Dashboard: React.FC<DashboardProps> = () => {
       display="flex"
       flexDirection="column"
     >
-      {/* Always-visible header */}
-      <VStack px={4} pt={4} pb={0} spacing={0} align="stretch" flexShrink={0}>
-        <HStack justify="space-between" align="center" mb={3}>
+      {/* Header */}
+      <VStack px={4} pt={4} pb={3} spacing={0} align="stretch" flexShrink={0}>
+        <HStack justify="space-between" align="center">
           <Logo compact color={theme.text} />
           <Popover isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} placement="bottom-end">
             <PopoverTrigger>
@@ -510,28 +510,29 @@ const Dashboard: React.FC<DashboardProps> = () => {
           </Popover>
         </HStack>
 
-        {/* Tab bar */}
-        <HStack spacing={0} borderBottom="1px solid" borderColor={theme.border}>
-          {(['home', 'profile'] as const).map((v) => (
-            <Button
-              key={v}
-              variant="ghost"
-              size="xs"
-              h="28px"
-              flex="1"
-              borderRadius="0"
-              fontWeight={view === v ? '700' : '500'}
-              fontSize="11px"
-              color={view === v ? brand.accent : theme.muted}
-              borderBottom={view === v ? `2px solid ${brand.accent}` : '2px solid transparent'}
-              onClick={() => setView(v)}
-              _hover={{ bg: theme.panel }}
-            >
-              {v === 'home' ? '⚡ Stats' : '👤 Profile'}
-            </Button>
-          ))}
-        </HStack>
       </VStack>
+
+      {/* Tab bar */}
+      <HStack spacing={0} borderBottom="1px solid" borderColor={theme.border} flexShrink={0}>
+        {(['home', 'profile'] as const).map((v) => (
+          <Button
+            key={v}
+            variant="ghost"
+            size="xs"
+            h="28px"
+            flex="1"
+            borderRadius="0"
+            fontWeight={view === v ? '700' : '500'}
+            fontSize="11px"
+            color={view === v ? brand.accent : theme.muted}
+            borderBottom={view === v ? `2px solid ${brand.accent}` : '2px solid transparent'}
+            onClick={() => setView(v)}
+            _hover={{ bg: theme.panel }}
+          >
+            {v === 'home' ? '⚡ Stats' : '👤 Profile'}
+          </Button>
+        ))}
+      </HStack>
 
       {view === 'home' ? (
         <>
