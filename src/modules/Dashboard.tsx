@@ -27,8 +27,9 @@ import React from 'react';
 import { BiLink, BiPencil, BiTrendingUp } from 'react-icons/bi';
 import { FiBookOpen, FiRefreshCw, FiSettings, FiZap } from 'react-icons/fi';
 import Logo from '../components/Logo';
-import { GithubHandler } from '../handlers';
+import { GithubHandler, type GithubRepo } from '../handlers';
 import { Footer } from './Footer';
+import ProfilePage from './ProfilePage';
 import { demoSubmissions } from '../utils/demo-submissions';
 import { formatProblemsPerDay, getTotalNumberOfStreaks } from '../utils/streak.helper';
 
@@ -99,11 +100,14 @@ const Dashboard: React.FC<DashboardProps> = () => {
   const [isPushingDemos, setIsPushingDemos] = React.useState(false);
   const [isRetrying, setIsRetrying] = React.useState(false);
   const [syncStatus, setSyncStatus] = React.useState<LitCodeSyncStatus | null>(null);
+  const [view, setView] = React.useState<'home' | 'profile'>('home');
+  const [problemsSolved, setProblemsSolved] = React.useState<Record<string, any>>({});
 
-  const [repos, setRepos] = React.useState<{ fullName: string; owner: string; name: string }[]>([]);
+  const [repos, setRepos] = React.useState<GithubRepo[]>([]);
   const [selectedRepo, setSelectedRepo] = React.useState('');
   const [loadingRepos, setLoadingRepos] = React.useState(false);
   const [useManualURL, setUseManualURL] = React.useState(false);
+  const reposCached = React.useRef(false);
 
   React.useEffect(() => {
     chrome.storage.sync.get(
@@ -119,13 +123,13 @@ const Dashboard: React.FC<DashboardProps> = () => {
         'github_litcode_token',
       ],
       (result) => {
-        const problemSolvedValues = Object.values(result.problemsSolved || {}) as {
-          timestamp: number;
-        }[];
+        const rawProblems = result.problemsSolved || {};
+        const problemSolvedValues = Object.values(rawProblems) as { timestamp: number }[];
         const problemsPerDay = formatProblemsPerDay(problemSolvedValues);
         const today = new Date().toISOString().split('T')[0];
         const savedTheme = result.litcode_color_mode as ThemeChoice | undefined;
 
+        setProblemsSolved(rawProblems);
         setGithubUsername(result.github_username);
         setRepoOwner(result.github_litcode_repo_owner || result.github_username || '');
         setGithubRepo(result.github_litcode_repo);
@@ -178,7 +182,7 @@ const Dashboard: React.FC<DashboardProps> = () => {
   };
 
   React.useEffect(() => {
-    if (!isChangingRepo || !githubToken) return;
+    if (!isChangingRepo || !githubToken || reposCached.current) return;
     const fetchRepos = async () => {
       setLoadingRepos(true);
       try {
@@ -190,12 +194,15 @@ const Dashboard: React.FC<DashboardProps> = () => {
         });
         if (response.ok) {
           const data = await response.json();
-          const repoList = data.map((r: any) => ({
-            fullName: r.full_name,
-            owner: r.owner.login,
-            name: r.name,
-          }));
+          const repoList: GithubRepo[] = data.map(
+            (r: { full_name: string; owner: { login: string }; name: string }) => ({
+              fullName: r.full_name,
+              owner: r.owner.login,
+              name: r.name,
+            }),
+          );
           setRepos(repoList);
+          reposCached.current = true;
           if (repoList.length > 0) {
             setSelectedRepo(repoList[0].fullName);
           } else {
@@ -204,8 +211,7 @@ const Dashboard: React.FC<DashboardProps> = () => {
         } else {
           setUseManualURL(true);
         }
-      } catch (err) {
-        console.error('Failed to fetch repositories:', err);
+      } catch {
         setUseManualURL(true);
       } finally {
         setLoadingRepos(false);
@@ -352,8 +358,9 @@ const Dashboard: React.FC<DashboardProps> = () => {
       display="flex"
       flexDirection="column"
     >
-      <VStack px={4} pt={4} pb={3} spacing={3} align="stretch" flexShrink={0}>
-        <HStack justify="space-between" align="center">
+      {/* Always-visible header */}
+      <VStack px={4} pt={4} pb={0} spacing={0} align="stretch" flexShrink={0}>
+        <HStack justify="space-between" align="center" mb={3}>
           <Logo compact color={theme.text} />
           <Popover isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} placement="bottom-end">
             <PopoverTrigger>
@@ -503,238 +510,282 @@ const Dashboard: React.FC<DashboardProps> = () => {
           </Popover>
         </HStack>
 
-        <Box>
-          <Text color={theme.muted} fontSize="10px" fontWeight="700" textTransform="uppercase">
-            Linked repo
-          </Text>
-          <HStack mt={1} spacing={2} justify="space-between">
+        {/* Tab bar */}
+        <HStack spacing={0} borderBottom="1px solid" borderColor={theme.border}>
+          {(['home', 'profile'] as const).map((v) => (
             <Button
-              as="a"
-              href={repoUrl}
-              target="_blank"
-              leftIcon={<BiLink />}
-              variant="link"
-              color={theme.text}
-              fontSize="13px"
-              fontWeight="700"
-              minW={0}
-              maxW="232px"
-              justifyContent="flex-start"
-              _hover={{ textDecoration: 'underline' }}
-            >
-              <Text isTruncated maxW="200px">
-                {repoLabel}
-              </Text>
-            </Button>
-            <Popover isOpen={isChangingRepo} onClose={() => setIsChangingRepo(false)} placement="bottom-end">
-              <PopoverTrigger>
-                <IconButton
-                  aria-label="Change linked repository"
-                  icon={<BiPencil />}
-                  borderRadius="4px"
-                  size="xs"
-                  h="26px"
-                  minW="26px"
-                  color={theme.text}
-                  variant="ghost"
-                  onClick={() => setIsChangingRepo(true)}
-                  _hover={{ bg: theme.panel }}
-                />
-              </PopoverTrigger>
-              <PopoverContent w="280px" borderRadius="6px" bg={theme.bg} color={theme.text} borderColor={theme.border}>
-                <PopoverArrow bg={theme.bg} />
-                <PopoverCloseButton />
-                <PopoverBody pt={8}>
-                  <FormControl isInvalid={!!repoError}>
-                    {useManualURL ? (
-                      <InputGroup size="sm">
-                        <Input
-                          value={newRepoURL}
-                          onChange={(event) => setNewRepoURL(event.target.value)}
-                          placeholder="https://github.com/user/repo"
-                          borderRadius="4px"
-                          fontSize="12px"
-                          bg={theme.inputBg}
-                          color={theme.text}
-                          borderColor={theme.border}
-                          _placeholder={{ color: theme.muted }}
-                        />
-                      </InputGroup>
-                    ) : (
-                      <Select
-                        size="sm"
-                        borderRadius="4px"
-                        fontSize="12px"
-                        bg={theme.inputBg}
-                        color={theme.text}
-                        borderColor={theme.border}
-                        value={selectedRepo}
-                        onChange={(e) => setSelectedRepo(e.target.value)}
-                        disabled={loadingRepos}
-                        placeholder={loadingRepos ? "Loading repositories..." : undefined}
-                      >
-                        {repos.map((r) => (
-                          <option key={r.fullName} value={r.fullName} style={{ background: theme.bg, color: theme.text }}>
-                            {r.fullName}
-                          </option>
-                        ))}
-                      </Select>
-                    )}
-                    {!repoError ? (
-                      <FormHelperText fontSize="10px" mt={1}>
-                        <Text
-                          as="span"
-                          cursor="pointer"
-                          color={brand.accent}
-                          textDecoration="underline"
-                          onClick={() => setUseManualURL(!useManualURL)}
-                        >
-                          {useManualURL ? "Select from list instead" : "Or paste URL manually"}
-                        </Text>
-                      </FormHelperText>
-                    ) : (
-                      <FormErrorMessage fontSize="10px">
-                        {repoError}.{' '}
-                        <Text
-                          as="span"
-                          cursor="pointer"
-                          color={brand.accent}
-                          textDecoration="underline"
-                          onClick={() => setUseManualURL(!useManualURL)}
-                        >
-                          {useManualURL ? "Select from list instead" : "Or paste URL manually"}
-                        </Text>
-                      </FormErrorMessage>
-                    )}
-                  </FormControl>
-                  <Button
-                    mt={2}
-                    w="100%"
-                    h="30px"
-                    bg={brand.accent}
-                    color="white"
-                    borderRadius="4px"
-                    size="sm"
-                    fontWeight="700"
-                    isLoading={isSavingRepo}
-                    onClick={changeRepo}
-                    _hover={{ bg: brand.accentHover }}
-                  >
-                    Save repo
-                  </Button>
-                </PopoverBody>
-              </PopoverContent>
-            </Popover>
-          </HStack>
-          <Text color={theme.muted} fontSize="11px" mt={1}>
-            Free complexity notes and README sync.
-          </Text>
-        </Box>
-
-        <HStack spacing={2}>
-          <Button
-            as="a"
-            href={repoUrl}
-            target="_blank"
-            bg={brand.accent}
-            color="white"
-            borderRadius="4px"
-            size="xs"
-            h="30px"
-            px={3}
-            fontWeight="700"
-            flex="1"
-            _hover={{ bg: brand.accentHover }}
-          >
-            Open repo
-          </Button>
-          <Tooltip label="Push sample accepted submissions" hasArrow>
-            <Button
-              bg={theme.bg}
-              color={theme.text}
-              border="1px solid"
-              borderColor={theme.border}
-              borderRadius="4px"
+              key={v}
+              variant="ghost"
               size="xs"
-              h="30px"
-              px={3}
-              fontWeight="700"
-              isLoading={isPushingDemos}
-              onClick={pushDemoSubmissions}
+              h="28px"
+              flex="1"
+              borderRadius="0"
+              fontWeight={view === v ? '700' : '500'}
+              fontSize="11px"
+              color={view === v ? brand.accent : theme.muted}
+              borderBottom={view === v ? `2px solid ${brand.accent}` : '2px solid transparent'}
+              onClick={() => setView(v)}
               _hover={{ bg: theme.panel }}
             >
-              Demos
+              {v === 'home' ? '⚡ Stats' : '👤 Profile'}
             </Button>
-          </Tooltip>
-          <Tooltip label="Retry current LeetCode problem" hasArrow>
-            <IconButton
-              aria-label="Retry current LeetCode problem"
-              icon={<FiRefreshCw />}
-              bg={theme.bg}
-              color={theme.text}
-              border="1px solid"
-              borderColor={theme.border}
-              borderRadius="4px"
-              size="xs"
-              h="30px"
-              minW="30px"
-              isLoading={isRetrying}
-              onClick={retryCurrentProblem}
-              _hover={{ bg: theme.panel }}
-            />
-          </Tooltip>
+          ))}
         </HStack>
       </VStack>
 
-      {syncStatus && (
-        <Box px={4} py={2} borderTop="1px solid" borderColor={theme.border} flexShrink={0}>
-          <Text
-            fontSize="10px"
-            color={syncStatus.state === 'failed' ? brand.danger : syncStatus.state === 'success' ? brand.success : theme.muted}
-            noOfLines={2}
-          >
-            {syncStatus.message}
-          </Text>
+      {view === 'home' ? (
+        <>
+          <VStack px={4} pt={3} pb={3} spacing={3} align="stretch" flexShrink={0}>
+            <Box>
+              <Text color={theme.muted} fontSize="10px" fontWeight="700" textTransform="uppercase">
+                Linked repo
+              </Text>
+              <HStack mt={1} spacing={2} justify="space-between">
+                <Button
+                  as="a"
+                  href={repoUrl}
+                  target="_blank"
+                  leftIcon={<BiLink />}
+                  variant="link"
+                  color={theme.text}
+                  fontSize="13px"
+                  fontWeight="700"
+                  minW={0}
+                  maxW="232px"
+                  justifyContent="flex-start"
+                  _hover={{ textDecoration: 'underline' }}
+                >
+                  <Text isTruncated maxW="200px">
+                    {repoLabel}
+                  </Text>
+                </Button>
+                <Popover isOpen={isChangingRepo} onClose={() => setIsChangingRepo(false)} placement="bottom-end">
+                  <PopoverTrigger>
+                    <IconButton
+                      aria-label="Change linked repository"
+                      icon={<BiPencil />}
+                      borderRadius="4px"
+                      size="xs"
+                      h="26px"
+                      minW="26px"
+                      color={theme.text}
+                      variant="ghost"
+                      onClick={() => setIsChangingRepo(true)}
+                      _hover={{ bg: theme.panel }}
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent w="280px" borderRadius="6px" bg={theme.bg} color={theme.text} borderColor={theme.border}>
+                    <PopoverArrow bg={theme.bg} />
+                    <PopoverCloseButton />
+                    <PopoverBody pt={8}>
+                      <FormControl isInvalid={!!repoError}>
+                        {useManualURL ? (
+                          <InputGroup size="sm">
+                            <Input
+                              value={newRepoURL}
+                              onChange={(event) => setNewRepoURL(event.target.value)}
+                              placeholder="https://github.com/user/repo"
+                              borderRadius="4px"
+                              fontSize="12px"
+                              bg={theme.inputBg}
+                              color={theme.text}
+                              borderColor={theme.border}
+                              _placeholder={{ color: theme.muted }}
+                            />
+                          </InputGroup>
+                        ) : (
+                          <Select
+                            size="sm"
+                            borderRadius="4px"
+                            fontSize="12px"
+                            bg={theme.inputBg}
+                            color={theme.text}
+                            borderColor={theme.border}
+                            value={selectedRepo}
+                            onChange={(e) => setSelectedRepo(e.target.value)}
+                            disabled={loadingRepos}
+                            placeholder={loadingRepos ? 'Loading repositories...' : undefined}
+                          >
+                            {repos.map((r) => (
+                              <option key={r.fullName} value={r.fullName} style={{ background: theme.bg, color: theme.text }}>
+                                {r.fullName}
+                              </option>
+                            ))}
+                          </Select>
+                        )}
+                        {!repoError ? (
+                          <FormHelperText fontSize="10px" mt={1}>
+                            <Text
+                              as="span"
+                              cursor="pointer"
+                              color={brand.accent}
+                              textDecoration="underline"
+                              onClick={() => setUseManualURL(!useManualURL)}
+                            >
+                              {useManualURL ? 'Select from list instead' : 'Or paste URL manually'}
+                            </Text>
+                          </FormHelperText>
+                        ) : (
+                          <FormErrorMessage fontSize="10px">
+                            {repoError}.{' '}
+                            <Text
+                              as="span"
+                              cursor="pointer"
+                              color={brand.accent}
+                              textDecoration="underline"
+                              onClick={() => setUseManualURL(!useManualURL)}
+                            >
+                              {useManualURL ? 'Select from list instead' : 'Or paste URL manually'}
+                            </Text>
+                          </FormErrorMessage>
+                        )}
+                      </FormControl>
+                      <Button
+                        mt={2}
+                        w="100%"
+                        h="30px"
+                        bg={brand.accent}
+                        color="white"
+                        borderRadius="4px"
+                        size="sm"
+                        fontWeight="700"
+                        isLoading={isSavingRepo}
+                        onClick={changeRepo}
+                        _hover={{ bg: brand.accentHover }}
+                      >
+                        Save repo
+                      </Button>
+                    </PopoverBody>
+                  </PopoverContent>
+                </Popover>
+              </HStack>
+              <Text color={theme.muted} fontSize="11px" mt={1}>
+                Free complexity notes and README sync.
+              </Text>
+            </Box>
+
+            <HStack spacing={2}>
+              <Button
+                as="a"
+                href={repoUrl}
+                target="_blank"
+                bg={brand.accent}
+                color="white"
+                borderRadius="4px"
+                size="xs"
+                h="30px"
+                px={3}
+                fontWeight="700"
+                flex="1"
+                _hover={{ bg: brand.accentHover }}
+              >
+                Open repo
+              </Button>
+              <Tooltip label="Push sample accepted submissions" hasArrow>
+                <Button
+                  bg={theme.bg}
+                  color={theme.text}
+                  border="1px solid"
+                  borderColor={theme.border}
+                  borderRadius="4px"
+                  size="xs"
+                  h="30px"
+                  px={3}
+                  fontWeight="700"
+                  isLoading={isPushingDemos}
+                  onClick={pushDemoSubmissions}
+                  _hover={{ bg: theme.panel }}
+                >
+                  Demos
+                </Button>
+              </Tooltip>
+              <Tooltip label="Retry current LeetCode problem" hasArrow>
+                <IconButton
+                  aria-label="Retry current LeetCode problem"
+                  icon={<FiRefreshCw />}
+                  bg={theme.bg}
+                  color={theme.text}
+                  border="1px solid"
+                  borderColor={theme.border}
+                  borderRadius="4px"
+                  size="xs"
+                  h="30px"
+                  minW="30px"
+                  isLoading={isRetrying}
+                  onClick={retryCurrentProblem}
+                  _hover={{ bg: theme.panel }}
+                />
+              </Tooltip>
+            </HStack>
+          </VStack>
+
+          {syncStatus && (
+            <Box px={4} py={2} borderTop="1px solid" borderColor={theme.border} flexShrink={0}>
+              <HStack spacing={1} align="flex-start">
+                <Text fontSize="10px" lineHeight="1.4" flexShrink={0}>
+                  {syncStatus.state === 'success' ? '✅' : syncStatus.state === 'failed' ? '❌' : syncStatus.state === 'pending' ? '⏳' : '⏭️'}
+                </Text>
+                <Text
+                  fontSize="10px"
+                  lineHeight="1.4"
+                  color={
+                    syncStatus.state === 'failed'
+                      ? brand.danger
+                      : syncStatus.state === 'success'
+                      ? brand.success
+                      : theme.muted
+                  }
+                  noOfLines={2}
+                >
+                  {syncStatus.message}
+                </Text>
+              </HStack>
+            </Box>
+          )}
+
+          <Box px={4} py={2.5} borderTop="1px solid" borderColor={theme.border} flexShrink={0}>
+            <SimpleGrid columns={3} spacing={0} w="100%">
+              <VStack align="center" justify="center" spacing={1} w="100%" textAlign="center">
+                <Box h="14px" display="flex" alignItems="center" justifyContent="center">
+                  <FiZap size={13} color={brand.accent} />
+                </Box>
+                <Text fontWeight="800" fontSize="18px" lineHeight="1">
+                  {solvedToday}
+                </Text>
+                <Text color={theme.muted} fontSize="10px" lineHeight="1">
+                  today
+                </Text>
+              </VStack>
+              <VStack align="center" justify="center" spacing={1} w="100%" textAlign="center">
+                <Box h="14px" display="flex" alignItems="center" justifyContent="center">
+                  <BiTrendingUp size={14} color={brand.accent} />
+                </Box>
+                <Text fontWeight="800" fontSize="18px" lineHeight="1">
+                  {streak}
+                </Text>
+                <Text color={theme.muted} fontSize="10px" lineHeight="1">
+                  streak
+                </Text>
+              </VStack>
+              <VStack align="center" justify="center" spacing={1} w="100%" textAlign="center">
+                <Box h="14px" display="flex" alignItems="center" justifyContent="center">
+                  <FiBookOpen size={13} color={brand.accent} />
+                </Box>
+                <Text fontWeight="800" fontSize="18px" lineHeight="1">
+                  {totalSolved}
+                </Text>
+                <Text color={theme.muted} fontSize="10px" lineHeight="1">
+                  READMEs
+                </Text>
+              </VStack>
+            </SimpleGrid>
+          </Box>
+        </>
+      ) : (
+        <Box overflowY="auto" flex="1">
+          <ProfilePage theme={theme} colorMode={colorMode} problemsSolved={problemsSolved} />
         </Box>
       )}
-
-      <Box px={4} py={2.5} borderTop="1px solid" borderColor={theme.border} flexShrink={0}>
-        <SimpleGrid columns={3} spacing={0} w="100%">
-          <VStack align="center" justify="center" spacing={1} w="100%" textAlign="center">
-            <Box h="14px" display="flex" alignItems="center" justifyContent="center">
-              <FiZap size={13} color={brand.accent} />
-            </Box>
-            <Text fontWeight="800" fontSize="18px" lineHeight="1">
-              {solvedToday}
-            </Text>
-            <Text color={theme.muted} fontSize="10px" lineHeight="1">
-              today
-            </Text>
-          </VStack>
-          <VStack align="center" justify="center" spacing={1} w="100%" textAlign="center">
-            <Box h="14px" display="flex" alignItems="center" justifyContent="center">
-              <BiTrendingUp size={14} color={brand.accent} />
-            </Box>
-            <Text fontWeight="800" fontSize="18px" lineHeight="1">
-              {streak}
-            </Text>
-            <Text color={theme.muted} fontSize="10px" lineHeight="1">
-              streak
-            </Text>
-          </VStack>
-          <VStack align="center" justify="center" spacing={1} w="100%" textAlign="center">
-            <Box h="14px" display="flex" alignItems="center" justifyContent="center">
-              <FiBookOpen size={13} color={brand.accent} />
-            </Box>
-            <Text fontWeight="800" fontSize="18px" lineHeight="1">
-              {totalSolved}
-            </Text>
-            <Text color={theme.muted} fontSize="10px" lineHeight="1">
-              READMEs
-            </Text>
-          </VStack>
-        </SimpleGrid>
-      </Box>
 
       <Box px={4} py={2} borderTop="1px solid" borderColor={theme.border} mt="auto" flexShrink={0}>
         <Footer muted={theme.muted} text={theme.text} />
